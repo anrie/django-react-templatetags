@@ -26,7 +26,7 @@ class ReactTagManager(Node):
     react_render.
     """
 
-    def __init__(self, identifier, component, data=None, css_class=None):
+    def __init__(self, identifier, component, props, css_class=None):
         component_prefix = ""
         if hasattr(settings, "REACT_COMPONENT_PREFIX"):
             component_prefix = settings.REACT_COMPONENT_PREFIX
@@ -34,7 +34,7 @@ class ReactTagManager(Node):
         self.identifier = identifier
         self.component = component
         self.component_prefix = component_prefix
-        self.data = data
+        self.props = props
         self.css_class = css_class
 
     def _has_processor(self):
@@ -57,13 +57,6 @@ class ReactTagManager(Node):
 
         component = "{}{}".format(self.component_prefix, component_name)
 
-        try:
-            resolved_data = self.data.resolve(context)
-        except template.VariableDoesNotExist:
-            resolved_data = None
-        except AttributeError:
-            resolved_data = None
-
         identifier = self.identifier
         if isinstance(self.identifier, template.Variable):
             identifier = self.identifier.resolve(context)
@@ -73,7 +66,7 @@ class ReactTagManager(Node):
         component = {
             "identifier": identifier,
             "component": component,
-            "data": resolved_data,
+            "props": self.props,
         }
 
         components.append(component)
@@ -89,17 +82,17 @@ class ReactTagManager(Node):
         return u'<div {}></div>'.format(" ".join(attr_pairs))
 
 
-def _prepare_args(parses, token):
+def _prepare_args(token):
     """
     Normalize token arguments that can be passed along to node renderer
     """
 
     values = {
+        "component": None,
         "identifier": None,
         "css_class": None,
-        "data": None
+        "props": {},
     }
-
     args = token.split_contents()
     method = args[0]
 
@@ -117,23 +110,25 @@ def _prepare_args(parses, token):
         else:
             value = template.Variable(value)
 
-        values[key] = value
+        if key in values:
+            values[key] = value
+        else:
+            values['props'][key] = value
 
-    assert "component" in values, "{} is missing component value".format(method)  # NOQA
+    assert "component" in values, "{} is missing component value".format(method)  # NOQA,
 
     return values
 
 
 @register.tag
-def react_render(parser, token):
+def render_component(parser, token):
     """
     Renders a react placeholder and adds it to the global render queue.
-
     Example:
-        {% react_render component="ListRestaurants" data=restaurants %}
+        {% render_component component="ListRestaurants" restaurants=restaurants %}
     """
 
-    values = _prepare_args(parser, token)
+    values = _prepare_args(token)
     return ReactTagManager(**values)
 
 
