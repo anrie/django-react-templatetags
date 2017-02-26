@@ -1,15 +1,9 @@
 {% load react_jsonfilter %}
 
 <script>
+  window.mounts = {
     {% for component in components %}
-        ReactDOM.render(
-                React.createElement({{ component.component }},
-                    {% if component.data %}
-                        {{ component.data|react_json }}
-                    {% else %}
-                        null
-                    {% endif %}),
-                document.getElementById('{{ component.identifier }}')
-        );
+      {{ component.identifier }}: {{ component.props|react_json }},
     {% endfor %}
+  };
 </script>
